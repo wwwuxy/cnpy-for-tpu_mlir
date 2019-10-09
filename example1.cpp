@@ -23,7 +23,7 @@ int main()
     //load it into a new array
     cnpy::NpyArray arr = cnpy::npy_load("arr1.npy");
     std::complex<double>* loaded_data = arr.data<std::complex<double>>();
-    
+
     //make sure the loaded data matches the saved data
     assert(arr.word_size == sizeof(std::complex<double>));
     assert(arr.shape.size() == 3 && arr.shape[0] == Nz && arr.shape[1] == Ny && arr.shape[2] == Nx);
@@ -46,7 +46,19 @@ int main()
 
     //load the entire npz file
     cnpy::npz_t my_npz = cnpy::npz_load("out.npz");
-    
+
+    // add a new array
+    std::vector<std::complex<double>> new_data(20);
+    for(int i = 0;i < 20;i++)
+        new_data[i] = std::complex<double>(i, 20 - i);
+    cnpy::npz_add_array<std::complex<double> >(my_npz, "new_arr", new_data);
+
+    //save the entire npz file back
+    // TODO: this has some problem, because npz_save_all() is assuming
+    // all array in same type, this is because NPArray struct does not
+    // convey a type info.
+    cnpy::npz_save_all<std::complex<double> >("out_new.npz", my_npz);
+
     //check that the loaded myVar1 matches myVar1
     cnpy::NpyArray arr_mv1 = my_npz["myVar1"];
     double* mv1 = arr_mv1.data<double>();

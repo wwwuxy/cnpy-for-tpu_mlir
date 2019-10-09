@@ -6,6 +6,7 @@
 #define LIBCNPY_H_
 
 #include<string>
+#include<cstring>
 #include<stdexcept>
 #include<sstream>
 #include<vector>
@@ -59,8 +60,8 @@ namespace cnpy {
         bool fortran_order;
         size_t num_vals;
     };
-   
-    using npz_t = std::map<std::string, NpyArray>; 
+
+    using npz_t = std::map<std::string, NpyArray>;
 
     char BigEndianTest();
     char map_type(const std::type_info& t);
@@ -75,7 +76,7 @@ namespace cnpy {
     template<typename T> std::vector<char>& operator+=(std::vector<char>& lhs, const T rhs) {
         //write in little endian
         for(size_t byte = 0; byte < sizeof(T); byte++) {
-            char val = *((char*)&rhs+byte); 
+            char val = *((char*)&rhs+byte);
             lhs.push_back(val);
         }
         return lhs;
@@ -85,7 +86,8 @@ namespace cnpy {
     template<> std::vector<char>& operator+=(std::vector<char>& lhs, const char* rhs);
 
 
-    template<typename T> void npy_save(std::string fname, const T* data, const std::vector<size_t> shape, std::string mode = "w") {
+    template<typename T> void npy_save(std::string fname, const T* data,
+            const std::vector<size_t> shape, std::string mode = "w") {
         FILE* fp = NULL;
         std::vector<size_t> true_data_shape; //if appending, the shape of existing + new data
 
@@ -130,7 +132,16 @@ namespace cnpy {
         fclose(fp);
     }
 
-    template<typename T> void npz_save(std::string zipname, std::string fname, const T* data, const std::vector<size_t>& shape, std::string mode = "w")
+    template<typename T> void npy_save(std::string fname,
+            const std::vector<T> data, std::string mode = "w") {
+        std::vector<size_t> shape;
+        shape.push_back(data.size());
+        npy_save(fname, &data[0], shape, mode);
+    }
+
+    template<typename T> void npz_save(std::string zipname, std::string fname,
+            const T* data, const std::vector<size_t>& shape,
+            std::string mode = "w")
     {
         //first, append a .npy to the fname
         fname += ".npy";
@@ -220,19 +231,44 @@ namespace cnpy {
         fclose(fp);
     }
 
-    template<typename T> void npy_save(std::string fname, const std::vector<T> data, std::string mode = "w") {
-        std::vector<size_t> shape;
-        shape.push_back(data.size());
-        npy_save(fname, &data[0], shape, mode);
-    }
-
-    template<typename T> void npz_save(std::string zipname, std::string fname, const std::vector<T> data, std::string mode = "w") {
+    template<typename T> void npz_save(std::string zipname, std::string fname,
+            const std::vector<T> &data, std::string mode = "w") {
         std::vector<size_t> shape;
         shape.push_back(data.size());
         npz_save(zipname, fname, &data[0], shape, mode);
     }
 
-    template<typename T> std::vector<char> create_npy_header(const std::vector<size_t>& shape) {  
+    template<typename T> void npz_save(std::string zipname, std::string fname,
+            NpyArray &array, std::string mode = "w") {
+        npz_save<T>(zipname, fname, array.data<T>(), array.shape, mode);
+    }
+
+    // TODO: this is assuming all npy inside a npz has the same dtype
+    template<typename T> void npz_save_all(std::string zipname, npz_t &map) {
+        for (auto it = map.begin(); it != map.end(); it++) {
+            npz_save<T>(zipname, it->first, it->second,
+                        (it == map.begin()) ? "w" : "a");
+        }
+    }
+
+    template<typename T> void npz_add_array(npz_t &map, std::string fname,
+            const T* data, const std::vector<size_t> shape) {
+        size_t word_size = sizeof(T);
+        bool fortran_order = false;
+        cnpy::NpyArray array(shape, word_size, fortran_order);
+        memcpy(array.data<unsigned char>(), data, array.num_bytes());
+        map[fname] = array;
+    }
+
+    template<typename T> void npz_add_array(npz_t &map, std::string fname,
+            const std::vector<T> &data) {
+        std::vector<size_t> shape;
+        shape.push_back(data.size());
+        npz_add_array(map, fname, &data[0], shape);
+    }
+
+    template<typename T> std::vector<char> create_npy_header(
+            const std::vector<size_t>& shape) {
 
         std::vector<char> dict;
         dict += "{'descr': '";
@@ -247,7 +283,8 @@ namespace cnpy {
         }
         if(shape.size() == 1) dict += ",";
         dict += "), }";
-        //pad with spaces so that preamble+dict is modulo 16 bytes. preamble is 10 bytes. dict needs to end with \n
+        //pad with spaces so that preamble+dict is modulo 16 bytes.
+        //preamble is 10 bytes. dict needs to end with \n
         int remainder = 16 - (10 + dict.size()) % 16;
         dict.insert(dict.end(),remainder,' ');
         dict.back() = '\n';
