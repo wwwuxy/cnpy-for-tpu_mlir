@@ -76,7 +76,7 @@ namespace cnpy {
     template<typename T> std::vector<char>& operator+=(std::vector<char>& lhs, const T rhs) {
         //write in little endian
         for(size_t byte = 0; byte < sizeof(T); byte++) {
-            char val = *((char*)&rhs+byte);
+            char val = *((const char*)&rhs+byte);
             lhs.push_back(val);
         }
         return lhs;
@@ -180,7 +180,7 @@ namespace cnpy {
 
         //get the CRC of the data to be added
         uint32_t crc = crc32(0L,(uint8_t*)&npy_header[0],npy_header.size());
-        crc = crc32(crc,(uint8_t*)data,nels*sizeof(T));
+        crc = crc32(crc,(const uint8_t*)data,nels*sizeof(T));
 
         //build the local header
         std::vector<char> local_header;
