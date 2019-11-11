@@ -13,6 +13,7 @@ int main()
 {
     //set random seed so that result is reproducible (for testing)
     srand(0);
+
     //create random data
     std::vector<std::complex<double>> data(Nx*Ny*Nz);
     for(int i = 0;i < Nx*Ny*Nz;i++) data[i] = std::complex<double>(rand(),rand());
@@ -57,11 +58,13 @@ int main()
     // TODO: this has some problem, because npz_save_all() is assuming
     // all array in same type, this is because NPArray struct does not
     // convey a type info.
-    cnpy::npz_save_all<std::complex<double> >("out_new.npz", my_npz);
+    cnpy::npz_save_all("out_new.npz", my_npz);
 
     //check that the loaded myVar1 matches myVar1
     cnpy::NpyArray arr_mv1 = my_npz["myVar1"];
     double* mv1 = arr_mv1.data<double>();
     assert(arr_mv1.shape.size() == 1 && arr_mv1.shape[0] == 1);
     assert(mv1[0] == myVar1);
+
+    return 0;
 }
