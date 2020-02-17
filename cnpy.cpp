@@ -21,29 +21,34 @@ static char BigEndianTest() {
 
 static char map_type(const std::type_info& t)
 {
-    if(t == typeid(float) ) return 'f';
-    if(t == typeid(double) ) return 'f';
-    if(t == typeid(long double) ) return 'f';
+    if( t == typeid(float) ) return 'f';
+    if( t == typeid(double) ) return 'f';
+    if( t == typeid(long double) ) return 'f';
 
-    if(t == typeid(int) ) return 'i';
-    if(t == typeid(char) ) return 'i';
-    if(t == typeid(short) ) return 'i';
-    if(t == typeid(long) ) return 'i';
-    if(t == typeid(long long) ) return 'i';
+    if( t == typeid(int) ) return 'i';
+    if( t == typeid(char) ) return 'i';
+    if( t == typeid(signed char) ) return 'i';
+    if( t == typeid(short) ) return 'i';
+    if( t == typeid(long) ) return 'i';
+    if( t == typeid(long long) ) return 'i';
 
-    if(t == typeid(unsigned char) ) return 'u';
-    if(t == typeid(unsigned short) ) return 'u';
-    if(t == typeid(unsigned long) ) return 'u';
-    if(t == typeid(unsigned long long) ) return 'u';
-    if(t == typeid(unsigned int) ) return 'u';
+    if( t == typeid(unsigned char) ) return 'u';
+    if( t == typeid(unsigned short) ) return 'u';
+    if( t == typeid(unsigned long) ) return 'u';
+    if( t == typeid(unsigned long long) ) return 'u';
+    if( t == typeid(unsigned int) ) return 'u';
 
-    if(t == typeid(bool) ) return 'b';
+    if( t == typeid(bool) ) return 'b';
 
-    if(t == typeid(std::complex<float>) ) return 'c';
-    if(t == typeid(std::complex<double>) ) return 'c';
-    if(t == typeid(std::complex<long double>) ) return 'c';
+    if( t == typeid(std::complex<float>) ) return 'c';
+    if( t == typeid(std::complex<double>) ) return 'c';
+    if( t == typeid(std::complex<long double>) ) return 'c';
 
-    else return '?';
+    std::cout << "libcnpy error: unknown type_id "
+              << t.name() << "\n";
+    // ref: https://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangling-builtin
+    assert(0);
+    return '?';
 }
 
 template<typename T>
@@ -438,10 +443,14 @@ template void npz_add_array<float>(npz_t &, std::string,
         const float*, const std::vector<size_t>);
 template void npz_add_array<int8_t>(npz_t &, std::string,
         const int8_t*, const std::vector<size_t>);
+template void npz_add_array<uint8_t>(npz_t &, std::string,
+        const uint8_t*, const std::vector<size_t>);
 template void npz_add_array<int16_t>(npz_t &, std::string,
         const int16_t*, const std::vector<size_t>);
 template void npz_add_array<uint16_t>(npz_t &, std::string,
         const uint16_t*, const std::vector<size_t>);
+template void npz_add_array<uint32_t>(npz_t &, std::string,
+        const uint32_t*, const std::vector<size_t>);
 
 template<typename T>
 void npz_add_array(npz_t &map, std::string fname,
@@ -498,6 +507,8 @@ void npz_save_all(std::string zipname, npz_t &map) {
             assert(0);
         } else {
             // invalid type
+            std::cout << "libcnpy error: invalid array type "
+                      << arr.type << ", for " << it->first << "\n";
             assert(0);
         }
     }
