@@ -572,13 +572,14 @@ static NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes,
 }
 
 npz_t npz_load(std::string fname) {
-    FILE* fp = fopen(fname.c_str(),"rb");
-
-    if(!fp) {
-        throw std::runtime_error("npz_load: Error! Unable to open file "+fname+"!");
-    }
-
     npz_t arrays;
+    arrays.clear();
+
+    FILE* fp = fopen(fname.c_str(),"rb");
+    if(!fp) {
+        //throw std::runtime_error("npz_load: Error! Unable to open file "+fname+"!");
+        return arrays;
+    }
 
     while(1) {
         std::vector<char> local_header(30);
