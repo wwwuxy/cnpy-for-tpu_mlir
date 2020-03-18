@@ -1,6 +1,10 @@
 //Copyright (C) 2011  Carl Rogers
 //Released under MIT License
 //license available in LICENSE file, or at http://www.opensource.org/licenses/mit-license.php
+#define _FILE_OFFSET_BITS 64
+#define __USE_FILE_OFFSET64
+#define __USE_LARGEFILE64
+#define _LARGEFILE64_SOURCE 
 
 #include"cnpy.h"
 #include<complex>
@@ -11,6 +15,8 @@
 #include<stdint.h>
 #include<stdexcept>
 #include <regex>
+
+#define ZIP64_LIMIT  ((1 << 31) - 1)
 
 namespace cnpy {
 
@@ -229,6 +235,13 @@ void parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_size,
     assert(disk_start == 0);
     assert(nrecs_on_disk == nrecs);
     assert(comment_len == 0);
+    if (global_header_offset >= 0xFFFFFFFF) {
+      //get global header offset from extra data
+      std::vector<char> zip64endrec_header(56);
+      fseek(fp,-98,SEEK_END);
+      size_t res = fread(&zip64endrec_header[0],sizeof(char),56,fp);
+      global_header_offset = *(uint64_t*) &zip64endrec_header[48];
+    }
 }
 
 template<typename T>
@@ -366,21 +379,105 @@ void npz_save(std::string zipname, std::string fname,
     local_header += (uint16_t) 0; //extra field length
     local_header += fname;
 
-    //build global header
-    global_header += "PK"; //first part of sig
-    global_header += (uint16_t) 0x0201; //second part of sig
-    global_header += (uint16_t) 20; //version made by
-    global_header.insert(global_header.end(),local_header.begin()+4,
-                         local_header.begin()+30);
-    global_header += (uint16_t) 0; //file comment length
-    global_header += (uint16_t) 0; //disk number where file starts
-    global_header += (uint16_t) 0; //internal file attributes
-    global_header += (uint32_t) 0; //external file attributes
-    //relative offset of local file header
-    //since it begins where the global header used to begin
-    global_header += (uint32_t) global_header_offset;
-    global_header += fname;
+    fwrite(&local_header[0],sizeof(char),local_header.size(),fp);
+    fwrite(&npy_header[0],sizeof(char),npy_header.size(),fp);
+    fwrite(data,sizeof(T),nels,fp);
+    /*
+      Only support global_header_offset is larger than ZIP64_LIMIT.
+      Not support size is larger than ZIP64_LIMIT now.
+    */
+    if (global_header_offset + nbytes + local_header.size() >= ZIP64_LIMIT) {
+      //structCentralDir = "<4s4B4HL2L5H2L"
+      //centdir = struct.pack(structCentralDir,
+      //stringCentralDir, create_version,
+      //zinfo.create_system, extract_version, zinfo.reserved,
+      //flag_bits, zinfo.compress_type, dostime, dosdate,
+      //zinfo.CRC, compress_size, file_size,
+      //len(filename), len(extra_data), len(zinfo.comment),
+      //0, zinfo.internal_attr, zinfo.external_attr,
+      //header_offset)
 
+      //build global header
+      global_header += "PK"; //first part of sig
+      global_header += (uint16_t) 0x0201; //second part of sig
+      global_header += (uint8_t) 45; //create_version
+      global_header += (uint8_t) 3; //zinfo.create_system
+      global_header += (uint8_t) 45; //extract_version
+      global_header += (uint8_t) 0; //zinfo.reserved
+      global_header.insert(global_header.end(),local_header.begin()+6,
+                           local_header.begin()+28);
+      global_header += (uint16_t) 12; //extran data length
+      global_header += (uint16_t) 0; //file comment length
+      global_header += (uint16_t) 0; //disk number where file starts
+      global_header += (uint16_t) 0; //internal file attributes
+      global_header += (uint32_t) 0; //external file attributes
+      //relative offset of local file header
+      //since it begins where the global header used to begin
+      global_header += (uint32_t) 0xFFFFFFFF ; //global_header_offset;
+      global_header += fname;
+      // Append a ZIP64 field to the extra's
+      // extra_data = struct.pack(
+      //         '<HH' + 'Q'*len(extra),
+      //         1, 8*len(extra), *extra) + extra_data
+      // extract_version = max(45, zinfo.extract_version)
+      // create_version = max(45, zinfo.create_version)
+      global_header += (uint16_t) 0x01;
+      global_header += (uint16_t) 0x08;
+      global_header += (uint64_t) global_header_offset;
+    } else {
+      //build global header
+      global_header += "PK"; //first part of sig
+      global_header += (uint16_t) 0x0201; //second part of sig
+      global_header += (uint16_t) 20; //version made by
+      global_header.insert(global_header.end(),local_header.begin()+4,
+                           local_header.begin()+30);
+      global_header += (uint16_t) 0; //file comment length
+      global_header += (uint16_t) 0; //disk number where file starts
+      global_header += (uint16_t) 0; //internal file attributes
+      global_header += (uint32_t) 0; //external file attributes
+      //relative offset of local file header
+      //since it begins where the global header used to begin
+      global_header += (uint32_t) global_header_offset;
+      global_header += fname;
+    }
+
+    fwrite(&global_header[0],sizeof(char),global_header.size(),fp);
+
+    if (global_header_offset >= ZIP64_LIMIT) {
+      //structEndArchive64 = "<4sQ2H2L4Q"
+      //zip64endrec = struct.pack(
+      //        structEndArchive64, stringEndArchive64,
+      //        44, 45, 45, 0, 0, centDirCount, centDirCount,
+      //        centDirSize, centDirOffset)
+      //self.fp.write(zip64endrec)
+      std::vector<char> zip64endrec_header;
+      zip64endrec_header += "PK";
+      zip64endrec_header += (uint16_t) 0x0606;
+      zip64endrec_header += (uint64_t) 0x44;
+      zip64endrec_header += (uint16_t) 0x45;
+      zip64endrec_header += (uint16_t) 0x45;
+      zip64endrec_header += (uint32_t) 0x0;
+      zip64endrec_header += (uint32_t) 0x0;
+      zip64endrec_header += (uint64_t) (nrecs+1); //centDirCount
+      zip64endrec_header += (uint64_t) (nrecs+1); //centDirCount
+      zip64endrec_header += (uint64_t) global_header.size(); //centDirSize
+      zip64endrec_header += (uint64_t) global_header_offset + nbytes + local_header.size(); //centDirOffset
+      fwrite(&zip64endrec_header[0],sizeof(char),zip64endrec_header.size(),fp);
+
+      //structEndArchive64Locator = "<4sLQL"
+      //zip64locrec = struct.pack(
+      //        structEndArchive64Locator,
+      //        stringEndArchive64Locator, 0, pos2, 1)
+      //self.fp.write(zip64locrec)
+      std::vector<char> zip64locrec_header;
+      zip64locrec_header += "PK";
+      zip64locrec_header += (uint16_t) 0x0706;
+      zip64locrec_header += (uint32_t) 0x0;
+      zip64locrec_header += (uint64_t) global_header_offset + nbytes + local_header.size() +
+                             zip64endrec_header.size(); // zip64endrec_header offset 
+      zip64locrec_header += (uint32_t) 0x1;
+      fwrite(&zip64locrec_header[0],sizeof(char),zip64locrec_header.size(),fp);
+    }
     //build footer
     std::vector<char> footer;
     footer += "PK"; //first part of sig
@@ -392,14 +489,10 @@ void npz_save(std::string zipname, std::string fname,
     footer += (uint32_t) global_header.size(); //nbytes of global headers
     //offset of start of global headers
     //since global header now starts after newly written array
-    footer += (uint32_t) (global_header_offset + nbytes + local_header.size());
+    footer += (global_header_offset >= ZIP64_LIMIT) ?
+               (uint32_t) 0xFFFFFFFF : (uint32_t) (global_header_offset + nbytes + local_header.size());
     footer += (uint16_t) 0; //zip file comment length
 
-    //write everything
-    fwrite(&local_header[0],sizeof(char),local_header.size(),fp);
-    fwrite(&npy_header[0],sizeof(char),npy_header.size(),fp);
-    fwrite(data,sizeof(T),nels,fp);
-    fwrite(&global_header[0],sizeof(char),global_header.size(),fp);
     fwrite(&footer[0],sizeof(char),footer.size(),fp);
     fclose(fp);
 }
