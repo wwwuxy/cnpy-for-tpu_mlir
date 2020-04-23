@@ -8,8 +8,15 @@ if (NOT DEFINED LLVM_MAIN_SRC_DIR)
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-  option(ENABLE_STATIC "Build static (.a) library" ON)
+  message(STATUS "CMAKE_SYSROOT ${CMAKE_SYSROOT}")
+  include_directories(${CMAKE_SYSROOT}/include)
 
+  set(ENV{PKG_CONFIG_DIR} "")
+  set(ENV{PKG_CONFIG_LIBDIR} "${CMAKE_SYSROOT}/usr/lib/pkgconfig:${CMAKE_SYSROOT}/usr/share/pkgconfig")
+  set(ENV{PKG_CONFIG_SYSROOT_DIR} ${CMAKE_SYSROOT})
+  find_package(ZLIB)
+
+  option(ENABLE_STATIC "Build static (.a) library" ON)
   add_library(cnpy SHARED "cnpy.cpp")
   target_link_libraries(cnpy z)
   install(TARGETS "cnpy" LIBRARY DESTINATION lib PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
