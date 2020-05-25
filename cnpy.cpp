@@ -474,7 +474,7 @@ void npz_save(std::string zipname, std::string fname,
       zip64locrec_header += (uint16_t) 0x0706;
       zip64locrec_header += (uint32_t) 0x0;
       zip64locrec_header += (uint64_t) global_header_offset + nbytes + local_header.size() +
-                             zip64endrec_header.size(); // zip64endrec_header offset 
+                             zip64endrec_header.size(); // zip64endrec_header offset
       zip64locrec_header += (uint32_t) 0x1;
       fwrite(&zip64locrec_header[0],sizeof(char),zip64locrec_header.size(),fp);
     }
@@ -678,7 +678,7 @@ npz_t npz_load(std::string fname) {
         std::vector<char> local_header(30);
         size_t headerres = fread(&local_header[0],sizeof(char),30,fp);
         if(headerres != 30)
-            throw std::runtime_error("npz_load: failed fread");
+            break;
 
         //if we've reached the global header, stop reading
         if(local_header[2] != 0x03 || local_header[3] != 0x04) break;
