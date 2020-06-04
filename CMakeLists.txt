@@ -54,6 +54,7 @@ else()
     cnpy.cpp)
   target_link_libraries(cnpy ${ZLIB_LIBRARIES})
 
+  install(FILES "cnpy.h" DESTINATION include)
   add_llvm_executable(cnpy_example1
     example1.cpp)
   target_link_libraries(cnpy_example1 PRIVATE
