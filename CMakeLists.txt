@@ -50,7 +50,7 @@ else()
 
   find_package(ZLIB REQUIRED)
 
-  add_llvm_library(cnpy
+  add_llvm_library(cnpy SHARED
     cnpy.cpp)
   target_link_libraries(cnpy ${ZLIB_LIBRARIES})
 
