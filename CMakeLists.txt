@@ -11,6 +11,9 @@ if (NOT DEFINED LLVM_MAIN_SRC_DIR)
   message(STATUS "CMAKE_SYSROOT ${CMAKE_SYSROOT}")
   include_directories(${CMAKE_SYSROOT}/include)
 
+  include_directories(${CMAKE_INSTALL_PREFIX}/include)
+  link_directories(${CMAKE_INSTALL_PREFIX}/lib)
+
   set(ENV{PKG_CONFIG_DIR} "")
   set(ENV{PKG_CONFIG_LIBDIR} "${CMAKE_SYSROOT}/usr/lib/pkgconfig:${CMAKE_SYSROOT}/usr/share/pkgconfig")
   set(ENV{PKG_CONFIG_SYSROOT_DIR} ${CMAKE_SYSROOT})
