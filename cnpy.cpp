@@ -354,7 +354,14 @@ void npz_save(std::string zipname, std::string fname,
 
     size_t word_size = sizeof(T);
     char type = map_type(typeid(T));
-    std::vector<char> npy_header = create_npy_header(shape, word_size, type);
+    std::vector<char> npy_header;
+    if(shape.size() != 0){
+        npy_header = create_npy_header(shape, word_size, type);
+    }else{
+        std::cerr << "[Warning] zip name: " << fname <<" npz shape size is 0, skip it\n";
+        fclose(fp);
+        return;
+    }
 
     size_t nels = std::accumulate(shape.begin(),shape.end(),1,std::multiplies<size_t>());
     size_t nbytes = nels*sizeof(T) + npy_header.size();
