@@ -16,7 +16,7 @@
 #include<stdexcept>
 #include <regex>
 
-#define ZIP64_LIMIT  ((1 << 31) - 1)
+#define ZIP64_LIMIT  ((((size_t)1) << 31) - 1)
 
 namespace cnpy {
 
