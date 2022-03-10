@@ -4,7 +4,7 @@
 #define _FILE_OFFSET_BITS 64
 #define __USE_FILE_OFFSET64
 #define __USE_LARGEFILE64
-#define _LARGEFILE64_SOURCE 
+#define _LARGEFILE64_SOURCE
 
 #include"cnpy.h"
 #include<complex>
